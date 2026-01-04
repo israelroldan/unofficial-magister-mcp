@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+
+# Playwright
+playwright-report/
+test-results/
+
+# Auth state and cache (contains session cookies)
+auth-state.json
+.auth-state.json
+.schedule-cache.json
