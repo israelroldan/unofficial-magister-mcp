@@ -1,5 +1,10 @@
 import 'dotenv/config';
-import { appendFileSync } from 'fs';
+import { appendFileSync, readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -92,7 +97,10 @@ function parseDate(dateStr: string): Date {
   return new Date(dateStr);
 }
 
-const server = new Server({ name: 'magister', version: '1.0.0' }, { capabilities: { tools: {} } });
+const server = new Server(
+  { name: 'unofficial-magister-mcp', version: pkg.version },
+  { capabilities: { tools: {} } }
+);
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
