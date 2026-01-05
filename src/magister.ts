@@ -19,6 +19,16 @@ interface CacheStore {
   [dateKey: string]: CacheEntry;
 }
 
+// Extended storage state with custom Magister data
+interface MagisterStorageState {
+  _magister?: {
+    userId: number | null;
+    accessToken: string | null;
+    savedAt: string;
+  };
+  [key: string]: unknown;
+}
+
 // Cache helper
 class ScheduleCache {
   private cache: CacheStore = {};
@@ -33,7 +43,7 @@ class ScheduleCache {
         this.cache = JSON.parse(readFileSync(CACHE_PATH, 'utf-8'));
         log('Cache loaded from disk');
       }
-    } catch (e) {
+    } catch {
       this.cache = {};
     }
   }
@@ -41,7 +51,7 @@ class ScheduleCache {
   private save() {
     try {
       writeFileSync(CACHE_PATH, JSON.stringify(this.cache, null, 2));
-    } catch (e) {
+    } catch {
       // Ignore save errors
     }
   }
@@ -70,7 +80,7 @@ class ScheduleCache {
 const scheduleCache = new ScheduleCache();
 
 function log(...args: unknown[]) {
-  const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+  const msg = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
   const line = `${new Date().toISOString()} ${msg}\n`;
   appendFileSync(LOG_FILE, line);
   process.stderr.write(line);
@@ -175,7 +185,9 @@ export class MagisterClient {
 
     // Click "Doorgaan" button (DNA-BUTTON web component)
     // Use text-based selector since it's a custom element
-    await this.page.click('dna-button:has-text("Doorgaan"), button:has-text("Doorgaan"), [type="submit"]');
+    await this.page.click(
+      'dna-button:has-text("Doorgaan"), button:has-text("Doorgaan"), [type="submit"]'
+    );
     log('Clicked continue button');
 
     // Wait for password field to appear (step 2 of login)
@@ -204,21 +216,21 @@ export class MagisterClient {
       ];
       for (const selector of consentSelectors) {
         const btn = await this.page.$(selector);
-        if (btn && await btn.isVisible()) {
+        if (btn && (await btn.isVisible())) {
           log('Found consent button:', selector);
           await btn.click();
           await this.page.waitForTimeout(500);
           break;
         }
       }
-    } catch (e) {
+    } catch {
       log('No consent dialog found (ok)');
     }
 
     // Log what buttons are visible on the page
     const buttons = await this.page.evaluate(() => {
       const btns = document.querySelectorAll('button, dna-button, [type="submit"]');
-      return Array.from(btns).map(b => ({
+      return Array.from(btns).map((b) => ({
         tag: b.tagName,
         text: b.textContent?.trim().slice(0, 30),
         visible: (b as HTMLElement).offsetParent !== null,
@@ -231,7 +243,11 @@ export class MagisterClient {
     const tokenHolder = { value: '' };
     this.page.on('framenavigated', (frame) => {
       const url = frame.url();
-      if (url.includes('redirect_callback') || url.includes('access_token') || url.includes('id_token')) {
+      if (
+        url.includes('redirect_callback') ||
+        url.includes('access_token') ||
+        url.includes('id_token')
+      ) {
         log('Captured redirect URL:', url.slice(0, 200));
         const tokenMatch = url.match(/access_token=([^&]+)/);
         if (tokenMatch) {
@@ -291,12 +307,16 @@ export class MagisterClient {
     log('Waiting for redirect to:', schoolDomain);
 
     try {
-      await this.page.waitForURL(url => {
-        const matches = url.href.includes(schoolDomain) && !url.href.includes('accounts.magister.net');
-        log('URL check:', url.href.slice(0, 80), 'matches:', matches);
-        return matches;
-      }, { timeout: 30000 });
-    } catch (e) {
+      await this.page.waitForURL(
+        (url) => {
+          const matches =
+            url.href.includes(schoolDomain) && !url.href.includes('accounts.magister.net');
+          log('URL check:', url.href.slice(0, 80), 'matches:', matches);
+          return matches;
+        },
+        { timeout: 30000 }
+      );
+    } catch {
       log('waitForURL failed, current URL:', this.page.url());
       // Continue anyway - we might already be on the right page
     }
@@ -361,15 +381,18 @@ export class MagisterClient {
     try {
       const storageState = await this.context.storageState();
       // Add our custom data to the storage state
-      (storageState as any)._magister = {
-        userId: this.userId,
-        accessToken: this.accessToken,
-        savedAt: new Date().toISOString(),
+      const extendedState: MagisterStorageState = {
+        ...storageState,
+        _magister: {
+          userId: this.userId,
+          accessToken: this.accessToken,
+          savedAt: new Date().toISOString(),
+        },
       };
-      writeFileSync(AUTH_STATE_PATH, JSON.stringify(storageState, null, 2));
+      writeFileSync(AUTH_STATE_PATH, JSON.stringify(extendedState, null, 2));
       log('Auth state saved to disk');
-    } catch (e) {
-      log('Failed to save auth state:', e);
+    } catch (err) {
+      log('Failed to save auth state:', err);
     }
   }
 
@@ -380,7 +403,7 @@ export class MagisterClient {
       const token = this.accessToken;
       const response = await this.page.evaluate(async (t) => {
         const headers: Record<string, string> = {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         };
         if (t) {
           headers['Authorization'] = `Bearer ${t}`;
@@ -402,35 +425,38 @@ export class MagisterClient {
         log('Logged in as person ID:', personId);
 
         // Try to get linked children (for parent accounts)
-        const childrenResponse = await this.page.evaluate(async (params) => {
-          const { personId, token } = params;
-          const headers: Record<string, string> = {
-            'Accept': 'application/json',
-          };
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-
-          // Try different endpoints for getting children
-          const endpoints = [
-            `/api/personen/${personId}/kinderen`,
-            `/api/leerlingen`,
-            `/api/accounts/${personId}/kinderen`,
-          ];
-
-          for (const endpoint of endpoints) {
-            try {
-              const res = await fetch(endpoint, { credentials: 'include', headers });
-              if (res.ok) {
-                const data = await res.json();
-                return { endpoint, data };
-              }
-            } catch (e) {
-              // Continue to next endpoint
+        const childrenResponse = await this.page.evaluate(
+          async (params) => {
+            const { personId, token } = params;
+            const headers: Record<string, string> = {
+              Accept: 'application/json',
+            };
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
             }
-          }
-          return { error: 'No children endpoint found' };
-        }, { personId, token });
+
+            // Try different endpoints for getting children
+            const endpoints = [
+              `/api/personen/${personId}/kinderen`,
+              `/api/leerlingen`,
+              `/api/accounts/${personId}/kinderen`,
+            ];
+
+            for (const endpoint of endpoints) {
+              try {
+                const res = await fetch(endpoint, { credentials: 'include', headers });
+                if (res.ok) {
+                  const data = await res.json();
+                  return { endpoint, data };
+                }
+              } catch {
+                // Continue to next endpoint
+              }
+            }
+            return { error: 'No children endpoint found' };
+          },
+          { personId, token }
+        );
 
         log('Children API response:', JSON.stringify(childrenResponse).slice(0, 500));
 
@@ -478,7 +504,7 @@ export class MagisterClient {
 
   private async refreshScheduleInBackground(date: Date, dateStr: string): Promise<void> {
     // Don't await - let it run in background
-    this.fetchScheduleFromAPI(date, dateStr).catch(e => {
+    this.fetchScheduleFromAPI(date, dateStr).catch((e) => {
       log('Background refresh failed:', e);
     });
   }
@@ -498,35 +524,38 @@ export class MagisterClient {
     log(`Fetching schedule for ${dateStr} (userId: ${this.userId})`);
 
     // Make API call with cookies (and token if available)
-    const apiResult = await this.page.evaluate(async (params) => {
-      const { dateStr, userId, token } = params;
+    const apiResult = await this.page.evaluate(
+      async (params) => {
+        const { dateStr, userId, token } = params;
 
-      try {
-        const scheduleUrl = `/api/personen/${userId}/afspraken?status=1&van=${dateStr}&tot=${dateStr}`;
-        console.log('Fetching:', scheduleUrl);
+        try {
+          const scheduleUrl = `/api/personen/${userId}/afspraken?status=1&van=${dateStr}&tot=${dateStr}`;
+          console.log('Fetching:', scheduleUrl);
 
-        const headers: Record<string, string> = {
-          'Accept': 'application/json',
-        };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+          const headers: Record<string, string> = {
+            Accept: 'application/json',
+          };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const res = await fetch(scheduleUrl, {
+            credentials: 'include',
+            headers,
+          });
+
+          if (!res.ok) {
+            return { error: 'Failed to get schedule', status: res.status, url: scheduleUrl };
+          }
+
+          const schedule = await res.json();
+          return { success: true, schedule };
+        } catch (e) {
+          return { error: String(e) };
         }
-
-        const res = await fetch(scheduleUrl, {
-          credentials: 'include',
-          headers,
-        });
-
-        if (!res.ok) {
-          return { error: 'Failed to get schedule', status: res.status, url: scheduleUrl };
-        }
-
-        const schedule = await res.json();
-        return { success: true, schedule };
-      } catch (e) {
-        return { error: String(e) };
-      }
-    }, { dateStr, userId: this.userId, token: this.accessToken || '' });
+      },
+      { dateStr, userId: this.userId, token: this.accessToken || '' }
+    );
 
     log('API result:', JSON.stringify(apiResult, null, 2).slice(0, 500));
 
@@ -541,8 +570,12 @@ export class MagisterClient {
 
     for (const appt of appointments) {
       items.push({
-        startTime: appt.Start ? new Date(appt.Start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '',
-        endTime: appt.Einde ? new Date(appt.Einde).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '',
+        startTime: appt.Start
+          ? new Date(appt.Start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+          : '',
+        endTime: appt.Einde
+          ? new Date(appt.Einde).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+          : '',
         subject: appt.Omschrijving || appt.Vakken?.[0]?.Naam || 'Unknown',
         teacher: appt.Docenten?.[0]?.Naam,
         location: appt.Lokalen?.[0]?.Naam || appt.Lokatie,
@@ -630,16 +663,27 @@ export class MagisterClient {
     return result;
   }
 
+  private isActualClass(item: ScheduleItem): boolean {
+    // Filter out cancelled classes and "Geen les" (no class) entries
+    if (item.cancelled) return false;
+
+    // Check for "Geen les" pattern in subject (case-insensitive)
+    const subject = item.subject.toLowerCase();
+    if (subject.includes('geen les')) return false;
+
+    return true;
+  }
+
   async getFirstClass(date: Date): Promise<ScheduleItem | null> {
     const schedule = await this.getSchedule(date);
-    const activeClasses = schedule.filter(item => !item.cancelled);
-    return activeClasses.length > 0 ? activeClasses[0] : null;
+    const actualClasses = schedule.filter((item) => this.isActualClass(item));
+    return actualClasses.length > 0 ? actualClasses[0] : null;
   }
 
   async getLastClass(date: Date): Promise<ScheduleItem | null> {
     const schedule = await this.getSchedule(date);
-    const activeClasses = schedule.filter(item => !item.cancelled);
-    return activeClasses.length > 0 ? activeClasses[activeClasses.length - 1] : null;
+    const actualClasses = schedule.filter((item) => this.isActualClass(item));
+    return actualClasses.length > 0 ? actualClasses[actualClasses.length - 1] : null;
   }
 
   async close(): Promise<void> {

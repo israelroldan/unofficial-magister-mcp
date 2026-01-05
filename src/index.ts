@@ -1,17 +1,13 @@
-#!/usr/bin/env node
 import 'dotenv/config';
 import { appendFileSync } from 'fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { MagisterClient, ScheduleItem } from './magister.js';
 
 const LOG_FILE = '/tmp/magister-mcp.log';
 function log(...args: unknown[]) {
-  const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+  const msg = args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
   const line = `${new Date().toISOString()} [MCP] ${msg}\n`;
   appendFileSync(LOG_FILE, line);
   process.stderr.write(line);
@@ -49,15 +45,16 @@ function formatSchedule(items: ScheduleItem[]): string {
     return 'No classes scheduled';
   }
 
-  return items.map(item => {
-    const status = item.cancelled ? ' [CANCELLED]' : '';
-    const time = item.startTime && item.endTime
-      ? `${item.startTime} - ${item.endTime}`
-      : 'Time unknown';
-    const location = item.location ? ` @ ${item.location}` : '';
-    const teacher = item.teacher ? ` (${item.teacher})` : '';
-    return `${time}: ${item.subject}${teacher}${location}${status}`;
-  }).join('\n');
+  return items
+    .map((item) => {
+      const status = item.cancelled ? ' [CANCELLED]' : '';
+      const time =
+        item.startTime && item.endTime ? `${item.startTime} - ${item.endTime}` : 'Time unknown';
+      const location = item.location ? ` @ ${item.location}` : '';
+      const teacher = item.teacher ? ` (${item.teacher})` : '';
+      return `${time}: ${item.subject}${teacher}${location}${status}`;
+    })
+    .join('\n');
 }
 
 function parseDate(dateStr: string): Date {
@@ -72,8 +69,15 @@ function parseDate(dateStr: string): Date {
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow;
   }
-  if (lower === 'monday' || lower === 'tuesday' || lower === 'wednesday' ||
-      lower === 'thursday' || lower === 'friday' || lower === 'saturday' || lower === 'sunday') {
+  if (
+    lower === 'monday' ||
+    lower === 'tuesday' ||
+    lower === 'wednesday' ||
+    lower === 'thursday' ||
+    lower === 'friday' ||
+    lower === 'saturday' ||
+    lower === 'sunday'
+  ) {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const targetDay = days.indexOf(lower);
     const currentDay = today.getDay();
@@ -88,10 +92,7 @@ function parseDate(dateStr: string): Date {
   return new Date(dateStr);
 }
 
-const server = new Server(
-  { name: 'magister', version: '1.0.0' },
-  { capabilities: { tools: {} } }
-);
+const server = new Server({ name: 'magister', version: '1.0.0' }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -103,19 +104,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           date: {
             type: 'string',
-            description: 'Date to get schedule for. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format'
-          }
+            description:
+              'Date to get schedule for. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format',
+          },
         },
-        required: ['date']
-      }
+        required: ['date'],
+      },
     },
     {
       name: 'get_week_schedule',
       description: 'Get school schedule for the entire week (next 7 days)',
       inputSchema: {
         type: 'object',
-        properties: {}
-      }
+        properties: {},
+      },
     },
     {
       name: 'get_dropoff_time',
@@ -125,11 +127,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           date: {
             type: 'string',
-            description: 'Date to check. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format'
-          }
+            description:
+              'Date to check. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format',
+          },
         },
-        required: ['date']
-      }
+        required: ['date'],
+      },
     },
     {
       name: 'get_pickup_time',
@@ -139,13 +142,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           date: {
             type: 'string',
-            description: 'Date to check. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format'
-          }
+            description:
+              'Date to check. Can be "today", "tomorrow", a weekday name, or YYYY-MM-DD format',
+          },
         },
-        required: ['date']
-      }
-    }
-  ]
+        required: ['date'],
+      },
+    },
+  ],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -160,10 +164,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const date = parseDate((args as { date: string }).date);
         const schedule = await magister.getSchedule(date);
         return {
-          content: [{
-            type: 'text',
-            text: `Schedule for ${date.toDateString()}:\n\n${formatSchedule(schedule)}`
-          }]
+          content: [
+            {
+              type: 'text',
+              text: `Schedule for ${date.toDateString()}:\n\n${formatSchedule(schedule)}`,
+            },
+          ],
         };
       }
 
@@ -175,7 +181,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           result += `=== ${date.toDateString()} ===\n${formatSchedule(items)}\n\n`;
         }
         return {
-          content: [{ type: 'text', text: result }]
+          content: [{ type: 'text', text: result }],
         };
       }
 
@@ -184,14 +190,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const firstClass = await magister.getFirstClass(date);
         if (firstClass) {
           return {
-            content: [{
-              type: 'text',
-              text: `First class on ${date.toDateString()}: ${firstClass.subject} at ${firstClass.startTime}${firstClass.location ? ` @ ${firstClass.location}` : ''}`
-            }]
+            content: [
+              {
+                type: 'text',
+                text: `First class on ${date.toDateString()}: ${firstClass.subject} at ${firstClass.startTime}${firstClass.location ? ` @ ${firstClass.location}` : ''}`,
+              },
+            ],
           };
         } else {
           return {
-            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }]
+            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
           };
         }
       }
@@ -201,14 +209,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const lastClass = await magister.getLastClass(date);
         if (lastClass) {
           return {
-            content: [{
-              type: 'text',
-              text: `Last class on ${date.toDateString()}: ${lastClass.subject} ends at ${lastClass.endTime}${lastClass.location ? ` @ ${lastClass.location}` : ''}`
-            }]
+            content: [
+              {
+                type: 'text',
+                text: `Last class on ${date.toDateString()}: ${lastClass.subject} ends at ${lastClass.endTime}${lastClass.location ? ` @ ${lastClass.location}` : ''}`,
+              },
+            ],
           };
         } else {
           return {
-            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }]
+            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
           };
         }
       }
@@ -221,7 +231,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     log(`Tool error: ${message}`);
     return {
       content: [{ type: 'text', text: `Error: ${message}` }],
-      isError: true
+      isError: true,
     };
   }
 });

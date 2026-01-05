@@ -1,25 +1,86 @@
 {
-  "name": "magister-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for accessing Magister school schedules via Playwright",
+  "name": "unofficial-magister-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for accessing Dutch Magister school schedules via Claude and other MCP clients",
   "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "unofficial-magister-mcp": "./dist/index.js"
   },
-  "keywords": ["mcp", "magister", "school", "schedule"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "mcp",
+    "magister",
+    "school",
+    "schedule",
+    "claude",
+    "anthropic",
+    "model-context-protocol",
+    "netherlands",
+    "dutch",
+    "education"
+  ],
   "author": "Israel Roldan",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/israelroldan/unofficial-magister-mcp.git"
+  },
+  "homepage": "https://github.com/israelroldan/unofficial-magister-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/israelroldan/unofficial-magister-mcp/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.3.0",
     "playwright": "^1.40.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/node": "^20.10.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.18.2"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }

@@ -1,8 +1,27 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Logs
 *.log
+logs/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Playwright
 playwright-report/
@@ -12,3 +31,13 @@ test-results/
 auth-state.json
 .auth-state.json
 .schedule-cache.json
+
+# npm
+.npm
+*.tgz
+
+# Optional npm cache directory
+.npm
+
+# TypeScript cache
+*.tsbuildinfo
