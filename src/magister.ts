@@ -664,12 +664,24 @@ export class MagisterClient {
   }
 
   private isActualClass(item: ScheduleItem): boolean {
-    // Filter out cancelled classes and "Geen les" (no class) entries
+    // Filter out cancelled classes
     if (item.cancelled) return false;
 
-    // Check for "Geen les" pattern in subject (case-insensitive)
     const subject = item.subject.toLowerCase();
+
+    // Filter out "no class" and cancellation notices
     if (subject.includes('geen les')) return false;
+    if (subject.includes('lesuitval')) return false;
+    if (subject.includes('vervallen')) return false;
+
+    // Informational notices often start with ! or #
+    if (item.subject.startsWith('!') || item.subject.startsWith('#')) return false;
+
+    // All-day events (00:00-00:00) are notices, not actual classes
+    if (item.startTime === '00:00' && item.endTime === '00:00') return false;
+
+    // Real classes have teachers assigned
+    if (!item.teacher) return false;
 
     return true;
   }
