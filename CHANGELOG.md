@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/israelroldan/unofficial-magister-mcp/compare/v1.0.1...v1.0.2) (2026-01-07)
+
+
+### Bug Fixes
+
+* detect school-wide cancellations in pickup/dropoff times ([#5](https://github.com/israelroldan/unofficial-magister-mcp/issues/5)) ([2240e95](https://github.com/israelroldan/unofficial-magister-mcp/commit/2240e95e29b4d4c660dda55aadc8584fd764ffee))
+
 ## [1.0.1](https://github.com/israelroldan/unofficial-magister-mcp/compare/v1.0.0...v1.0.1) (2026-01-06)
 
 
