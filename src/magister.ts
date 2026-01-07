@@ -693,34 +693,28 @@ export class MagisterClient {
 
   /**
    * Detects school-wide cancellation notices in the schedule.
-   * Returns the cancellation reason if found, or null otherwise.
+   * Only returns a cancellation reason for all-day notices (00:00-00:00).
+   * Per-period cancellations like "geen lessen 4e uur" are ignored here.
    */
   private detectSchoolWideCancellation(schedule: ScheduleItem[]): string | null {
     const cancellationPatterns = [
       /alle lessen vervallen/i,
       /school gesloten/i,
       /geen lessen/i,
-      /lesuitval.*alle/i,
+      /lesuitval/i,
       /code (oranje|rood)/i,
     ];
 
     for (const item of schedule) {
-      const textToCheck = `${item.subject} ${item.description || ''}`.toLowerCase();
+      // Only consider all-day notices (00:00-00:00) as school-wide cancellations
+      if (item.startTime !== '00:00' || item.endTime !== '00:00') {
+        continue;
+      }
+
+      const textToCheck = `${item.subject} ${item.description || ''}`;
 
       for (const pattern of cancellationPatterns) {
         if (pattern.test(textToCheck)) {
-          // Return the notice text as the reason
-          return item.description || item.subject;
-        }
-      }
-
-      // Also check for all-day cancellation notices (00:00-00:00 with cancellation keywords)
-      if (item.startTime === '00:00' && item.endTime === '00:00') {
-        if (
-          textToCheck.includes('vervallen') ||
-          textToCheck.includes('uitval') ||
-          textToCheck.includes('gesloten')
-        ) {
           return item.description || item.subject;
         }
       }
@@ -731,14 +725,16 @@ export class MagisterClient {
 
   async getFirstClass(date: Date): Promise<ClassResult> {
     const schedule = await this.getSchedule(date);
+    const actualClasses = schedule.filter((item) => this.isActualClass(item));
 
-    // Check for school-wide cancellation first
-    const cancellationReason = this.detectSchoolWideCancellation(schedule);
-    if (cancellationReason) {
-      return { class: null, cancellationReason };
+    // Only report cancellation if there are no actual classes AND a cancellation notice exists
+    if (actualClasses.length === 0) {
+      const cancellationReason = this.detectSchoolWideCancellation(schedule);
+      if (cancellationReason) {
+        return { class: null, cancellationReason };
+      }
     }
 
-    const actualClasses = schedule.filter((item) => this.isActualClass(item));
     return {
       class: actualClasses.length > 0 ? actualClasses[0] : null,
       cancellationReason: null,
@@ -747,14 +743,16 @@ export class MagisterClient {
 
   async getLastClass(date: Date): Promise<ClassResult> {
     const schedule = await this.getSchedule(date);
+    const actualClasses = schedule.filter((item) => this.isActualClass(item));
 
-    // Check for school-wide cancellation first
-    const cancellationReason = this.detectSchoolWideCancellation(schedule);
-    if (cancellationReason) {
-      return { class: null, cancellationReason };
+    // Only report cancellation if there are no actual classes AND a cancellation notice exists
+    if (actualClasses.length === 0) {
+      const cancellationReason = this.detectSchoolWideCancellation(schedule);
+      if (cancellationReason) {
+        return { class: null, cancellationReason };
+      }
     }
 
-    const actualClasses = schedule.filter((item) => this.isActualClass(item));
     return {
       class: actualClasses.length > 0 ? actualClasses[actualClasses.length - 1] : null,
       cancellationReason: null,
