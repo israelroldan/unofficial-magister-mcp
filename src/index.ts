@@ -195,40 +195,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_dropoff_time': {
         const date = parseDate((args as { date: string }).date);
-        const firstClass = await magister.getFirstClass(date);
-        if (firstClass) {
+        const result = await magister.getFirstClass(date);
+        if (result.cancellationReason) {
           return {
             content: [
               {
                 type: 'text',
-                text: `First class on ${date.toDateString()}: ${firstClass.subject} at ${firstClass.startTime}${firstClass.location ? ` @ ${firstClass.location}` : ''}`,
+                text: `No classes on ${date.toDateString()} - cancelled (${result.cancellationReason})`,
               },
             ],
           };
-        } else {
+        }
+        if (result.class) {
           return {
-            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
+            content: [
+              {
+                type: 'text',
+                text: `First class on ${date.toDateString()}: ${result.class.subject} at ${result.class.startTime}${result.class.location ? ` @ ${result.class.location}` : ''}`,
+              },
+            ],
           };
         }
+        return {
+          content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
+        };
       }
 
       case 'get_pickup_time': {
         const date = parseDate((args as { date: string }).date);
-        const lastClass = await magister.getLastClass(date);
-        if (lastClass) {
+        const result = await magister.getLastClass(date);
+        if (result.cancellationReason) {
           return {
             content: [
               {
                 type: 'text',
-                text: `Last class on ${date.toDateString()}: ${lastClass.subject} ends at ${lastClass.endTime}${lastClass.location ? ` @ ${lastClass.location}` : ''}`,
+                text: `No classes on ${date.toDateString()} - cancelled (${result.cancellationReason})`,
               },
             ],
           };
-        } else {
+        }
+        if (result.class) {
           return {
-            content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
+            content: [
+              {
+                type: 'text',
+                text: `Last class on ${date.toDateString()}: ${result.class.subject} ends at ${result.class.endTime}${result.class.location ? ` @ ${result.class.location}` : ''}`,
+              },
+            ],
           };
         }
+        return {
+          content: [{ type: 'text', text: `No classes scheduled for ${date.toDateString()}` }],
+        };
       }
 
       default:
