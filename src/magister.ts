@@ -576,10 +576,18 @@ export class MagisterClient {
     for (const appt of appointments) {
       items.push({
         startTime: appt.Start
-          ? new Date(appt.Start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+          ? new Date(appt.Start).toLocaleTimeString('nl-NL', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'Europe/Amsterdam',
+            })
           : '',
         endTime: appt.Einde
-          ? new Date(appt.Einde).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+          ? new Date(appt.Einde).toLocaleTimeString('nl-NL', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'Europe/Amsterdam',
+            })
           : '',
         subject: appt.Omschrijving || appt.Vakken?.[0]?.Naam || 'Unknown',
         teacher: appt.Docenten?.[0]?.Naam,
